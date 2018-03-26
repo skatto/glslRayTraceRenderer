@@ -35,16 +35,16 @@ int main() {
               WHITE),
       Polygon(Vec(8.f, -3.f, 3.f), Vec(-8.f, -3.f, -3.f), Vec(8.f, -3.f, -3.f),
               WHITE),
-      //       Polygon(Vec(6, -0.5, -2.9), Vec(6, 0.5, -2.9), Vec(7, 0.5, -2.9),
-      //       WHITE * 50, MATERIAL_LIGHT),
-      //       Polygon(Vec(6, -0.5, -2.9), Vec(7, -0.5, -2.9), Vec(7, 0.5,
-      //       -2.9), WHITE * 50, MATERIAL_LIGHT),
+      // Polygon(Vec(6, -0.5, -2.9), Vec(6, 0.5, -2.9), Vec(7, 0.5, -2.9),
+      // WHITE * 50, MATERIAL_LIGHT),
+      // Polygon(Vec(6, -0.5, -2.9), Vec(7, -0.5, -2.9), Vec(7, 0.5,
+      // -2.9), WHITE * 50, MATERIAL_LIGHT),
       Polygon(Vec(7, 3, 3), Vec(8, 2, 3), Vec(8, 3, 2), RED * 10,
-              Material::DirLight),
+              Material::Light),
       Polygon(Vec(7, -3, 3), Vec(8, -2, 3), Vec(8, -3, 2), GREEN * 10,
-              Material::DirLight),
+              Material::Light),
       Polygon(Vec(7, 3, -3), Vec(8, 2, -3), Vec(8, 3, -2), BLUE * 10,
-              Material::DirLight),
+              Material::Light),
   };
 
   WindowConfig window;

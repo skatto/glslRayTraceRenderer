@@ -208,8 +208,10 @@ Intersection intersectBVH(const Ray& ray, const BVH& bvh) {
 
 struct Point {
   Vec pos;
+  Vec col;
   real pdf;
-  Point(const Vec& position, const real& pdf_) : pos(position), pdf(pdf_) {}
+  Point(const Vec& position, const Vec& color, const real& pdf_)
+  : pos(position), col(color), pdf(pdf_){}
 };
 
 Ray decideRay(const Intersection& isect, const Ray& priv,
@@ -233,7 +235,7 @@ Ray decideRay(const Intersection& isect, const Ray& priv,
                   isect.normal * std::sqrt(1.f - costheta * costheta));
     ray.pdf *= kPI;
   }
-  return std::move(ray);
+  return ray;
 }
 
 Ray decideLightRay(const Vec& normal, const Vec& point,
@@ -271,19 +273,25 @@ Point makePoint(const Polygon& light, const real& u, const real& v,
   Ray ray = decideLightRay(normalize(cross(edge0, edge1)),
                            light.vert[0] + u * edge0 + v * edge1, coord, rnd,
                            light.material);
+  ray.pdf *= cross(edge0, edge1).length();
   Intersection isect;
 
   for (ray.depth = 0; ray.depth < kMAX_DEPTH; ray.depth++) {
     isect = intersectBVH(ray, bvh);
     if (isect.t == kINF) {
-      return Point(Vec(), 0.0);
+      return Point(Vec(), Vec(), 0.0);
     }
     ray.col *= isect.col;
     ray = decideRay(isect, ray, coord, rnd);
+
+    if (coord(rnd) > std::pow(0.6, ray.depth - 1)) {
+      return Point(isect.point, ray.col, ray.pdf);
+    }
+    ray.pdf /= std::max(1.0, std::pow(0.6, ray.depth - 1));
     // TODO
   }
 
-  return Point(isect.point, ray.pdf);
+  return Point(isect.point, ray.col, ray.pdf);
 }
 
 std::vector<Point> makePoints(const std::vector<Polygon>& lights,

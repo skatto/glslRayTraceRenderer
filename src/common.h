@@ -74,7 +74,7 @@ struct Vec {
   }
 
   inline real length_squared() const { return x * x + y * y + z * z; }
-  inline real length() const { return real(sqrt(double(length_squared()))); }
+  inline real length() const { return real(std::sqrt(double(length_squared()))); }
 
   constexpr real operator[](int i) const { return (&x)[i]; }
   real& operator[](int i) { return (&x)[i]; }
@@ -98,6 +98,8 @@ constexpr real mymin(const real& a, const real& b) { return a < b ? a : b; }
 constexpr Vec min(const Vec& a, const Vec& b) {
   return Vec(mymin(a.x, b.x), mymin(a.y, b.y), mymin(a.z, b.z));
 }
+
+constexpr real length(const Vec& v) { return v.length(); }
 
 inline Vec operator*(const real& f, const Vec& v) { return v * f; }
 inline Vec normalize(const Vec& v) { return v * (real(1) / v.length()); }
