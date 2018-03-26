@@ -1,0 +1,4 @@
+build
+.xcodeDerivedData
+NewGlslRenderer.xcodeproj
+.DS_Store
