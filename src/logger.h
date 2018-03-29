@@ -14,9 +14,9 @@
 #include <sys/time.h>
 #include <time.h>
 
-#ifndef NDEBUG
 #define kFILE_NAME                                                             \
   (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#ifndef NDEBUG
 #define DEBUG_OUT(var)                                                         \
   Log(Now(), kFILE_NAME, ":", __LINE__, ": ", #var, " = ", var)
 #define DEBUG_LOG(...) Log(Now(), kFILE_NAME, ":", __LINE__, ": ", __VA_ARGS__);
@@ -24,6 +24,8 @@
 #define DEBUG_OUT(var)
 #define DEBUG_LOG(...)
 #endif
+
+#define LOG_INFO(...) Log(Now(), kFILE_NAME, ":", __LINE__, ": ", __VA_ARGS__);
 
 static const std::string Now() {
   struct timeval myTime;

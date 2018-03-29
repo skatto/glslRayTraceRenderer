@@ -25,6 +25,8 @@ uniform sampler2D bvh_tex;
 uniform isampler1D bvh_info_tex;
 uniform int bvh_size;
 
+uniform sampler2D point_tex;
+
 uniform bool onlyDraw;
 uniform sampler2D d_tex;
 uniform float brightness;
@@ -46,14 +48,6 @@ struct Ray {
   vec3 org;
   vec3 dir;
   vec3 col;
-};
-
-struct Solid {
-  int type;
-
-  int reftype;
-  vec3 color;
-  bool light;
 };
 
 struct Seed {
@@ -269,10 +263,8 @@ void main() {
     vec3 ray_d = normalize(c_x * (position.x - 0.5 + rand() / screen_size.x) * aspect_ratio +
                            c_y * (position.y - 0.5 + rand() / screen_size.y) +
                            camera_dir);
-    Ray ray = Ray(camera_pos, ray_d, vec3(1));
-
     float pdf;
-    vec3 col = renderRay(ray, pdf);
+    vec3 col = renderRay(Ray(camera_pos, ray_d, vec3(1)), pdf);
     color += col / pdf;
   }
   color /= num_sample;

@@ -73,8 +73,10 @@ struct Vec {
     z /= b;
   }
 
-  inline real length_squared() const { return x * x + y * y + z * z; }
-  inline real length() const { return real(std::sqrt(double(length_squared()))); }
+  constexpr real length_squared() const { return x * x + y * y + z * z; }
+  inline real length() const {
+    return real(std::sqrt(double(length_squared())));
+  }
 
   constexpr real operator[](int i) const { return (&x)[i]; }
   real& operator[](int i) { return (&x)[i]; }

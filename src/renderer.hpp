@@ -42,7 +42,7 @@ private:
   GLuint fs_id;
 
   BVH bvh;
-  std::vector<Polygon> light;
+  std::vector<Polygon> lights;
 
 public:
   GlslRayTraceRenderer(const RenderConfig& r_config_,
@@ -59,7 +59,7 @@ public:
     // setup light array
     for (auto& pol : polygons_) {
       if (pol.material == Material::Light) {
-        light.push_back(pol);
+        lights.push_back(pol);
       }
     }
     // make BVH
