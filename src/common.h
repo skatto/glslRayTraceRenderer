@@ -176,7 +176,7 @@ struct Intersection {
   size_t solid_id;
   bool end;
   Material material;
-  Intersection() : point(Vec(kINF, kINF, kINF)), t(kINF) {}
+  Intersection() : point(Vec(kINF)), t(kINF) {}
 };
 
 struct Polygon {
@@ -193,7 +193,7 @@ public:
   struct Node {
     Vec start, end;
     size_t s_idx = size_t(-1), e_idx = size_t(-1);
-    size_t brother = size_t(-1); // index of brother
+    size_t brother = size_t(-1);  // index of brother
     size_t parent = size_t(-1);
     bool leaf = false;
   };

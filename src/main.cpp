@@ -6,8 +6,8 @@
 //  Copyright © 2018年 Skatto. All rights reserved.
 //
 
-#include "renderer.hpp"
 #include <iostream>
+#include "renderer.hpp"
 
 int main() {
   std::vector<Polygon> polygons{
@@ -39,11 +39,11 @@ int main() {
       // WHITE * 50, MATERIAL_LIGHT),
       // Polygon(Vec(6, -0.5, -2.9), Vec(7, -0.5, -2.9), Vec(7, 0.5,
       // -2.9), WHITE * 50, MATERIAL_LIGHT),
-      Polygon(Vec(7, 3, 3), Vec(8, 2, 3), Vec(8, 3, 2), RED * 10,
+      Polygon(Vec(7, -3, 3), Vec(8, -2, 3), Vec(8, -3, 2), BLUE * 10,
               Material::Light),
-      Polygon(Vec(7, -3, 3), Vec(8, -2, 3), Vec(8, -3, 2), GREEN * 10,
-              Material::Light),
-      Polygon(Vec(7, 3, -3), Vec(8, 2, -3), Vec(8, 3, -2), BLUE * 10,
+      //      Polygon(Vec(7, 3, 3), Vec(8, 3, 2), Vec(8, 2, 3), RED * 10,
+      //              Material::Light),
+      Polygon(Vec(7, 3, -3), Vec(8, 2, -3), Vec(8, 3, -2), GREEN * 10,
               Material::Light),
   };
 
@@ -64,5 +64,5 @@ int main() {
 
   renderer.start();
 
-  return 0;
+  return EXIT_SUCCESS;
 }

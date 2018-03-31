@@ -15,6 +15,7 @@
 
 #include "../gl_src/glsl_utility.h"
 #include "fps.h"
+#include "intersect.h"
 #include "logger.h"
 
 namespace {
@@ -60,7 +61,9 @@ PTexture2Df setupTriangleTexture(const int& side_len,
     real info;
 
     PolygonData(const Polygon& pol)
-        : ver0(pol.vert[0]), ver1(pol.vert[1]), ver2(pol.vert[2]),
+        : ver0(pol.vert[0]),
+          ver1(pol.vert[1]),
+          ver2(pol.vert[2]),
           color(pol.col) {
       info = GLfloat(pol.material);
     }
@@ -119,104 +122,15 @@ bool setupBVHTexture(const int& side_len, const BVH& bvh, PTexture2Df coord_tex,
   return true;
 }
 
-bool intersectTriangle(const Ray ray, const Polygon& polygon,
-                       Intersection* result) {
-  Vec position0 = polygon.vert[0];
-  Vec edge0 = polygon.vert[1] - polygon.vert[0];
-  Vec edge1 = polygon.vert[2] - polygon.vert[0];
-
-  /* Möller–Trumbore intersection algorithm */
-  Vec P = cross(ray.dir, edge1);
-  float det = dot(P, edge0);
-  if (-kEPS < det && det < kEPS)
-    return false;
-  float inv_det = 1.f / det;
-  Vec T = ray.org - position0;
-  float u = dot(T, P) * inv_det;
-  if (u < 0.f || 1.f < u)
-    return false;
-  Vec Q = cross(T, edge0);
-  float v = dot(ray.dir, Q) * inv_det;
-  if (v < 0.f || 1.f < u + v)
-    return false;
-  float t = dot(edge1, Q) * inv_det;
-
-  if (kEPS < t && result->t > t) { // Hit
-    result->point = ray.org + ray.dir * t;
-    result->t = t;
-    result->col = polygon.col;
-    result->normal = normalize(cross(edge0, edge1));
-    result->material = polygon.material;
-    //    result->solid_id = ;
-    if (dot(result->normal, ray.dir) > 0) {
-      result->normal = -1 * result->normal;
-    }
-    if (polygon.material == Material::Light &&
-        polygon.material == Material::DirLight) {
-      result->end = true;
-    } else {
-      result->end = false;
-    }
-    return true;
-  }
-  return false;
-}
-
-bool intersectBoundingBox(const Ray& ray, const BVH::Node& node) {
-  float t_far = kINF, t_near = -kINF;
-  for (int i = 0; i < 3; i++) {
-    float t1 = (node.start[i] - ray.org[i]) / ray.dir[i];
-    float t2 = (node.end[i] - ray.org[i]) / ray.dir[i];
-    if (t1 < t2) {
-      t_far = std::min(t_far, t2);
-      t_near = std::max(t_near, t1);
-    } else {
-      t_far = std::min(t_far, t1);
-      t_near = std::max(t_near, t2);
-    }
-    if (t_far < t_near)
-      return false;
-  }
-  return t_far > 0;
-}
-
-Intersection intersectBVH(const Ray& ray, const BVH& bvh) {
-  Intersection isect;
-  isect.end = false;
-  isect.t = kINF;
-
-  size_t node_idx = 0;
-  while (true) {
-    const BVH::Node& node = bvh.nodes[node_idx];
-    if (intersectBoundingBox(ray, node)) {
-      if (node.leaf) {
-        for (size_t tri_idx = node.s_idx; tri_idx < node.e_idx; tri_idx++) {
-          if (intersectTriangle(ray, bvh.polygons[tri_idx], &isect)) {
-            isect.solid_id = tri_idx;
-          }
-        }
-      }
-      node_idx++;
-      if (node_idx >= bvh.nodes.size())
-        break;
-    } else {
-      if (node.brother == size_t(-1)) {
-        break;
-      }
-      node_idx = node.brother;
-    }
-  }
-  return isect;
-}
-
 struct Point {
   Vec pos;
-  real pad;
+  real polygon_id;
   Vec col;
   real pdf;
   Point() {}
-  Point(const Vec& position, const Vec& color, const real& pdf_)
-      : pos(position), col(color), pdf(pdf_) {}
+  Point(const Vec& position, const size_t& polygon_id_, const Vec& color,
+        const real& pdf_)
+      : pos(position), polygon_id(polygon_id_), col(color), pdf(pdf_) {}
 };
 
 Ray decideRay(const Intersection& isect, const Ray& priv,
@@ -239,7 +153,16 @@ Ray decideRay(const Intersection& isect, const Ray& priv,
         normalize(u * std::cos(phi) * costheta + v * std::sin(phi) * costheta +
                   isect.normal * std::sqrt(1.f - costheta * costheta));
     ray.pdf *= kPI;
+    assert(0 < dot(ray.dir, isect.normal));
   }
+  if (isect.material == Material::Light) {
+    ray.dir =
+        normalize(u * std::cos(phi) * costheta + v * std::sin(phi) * costheta +
+                  isect.normal * std::sqrt(1.f - costheta * costheta));
+    ray.pdf *= kPI;
+    ray.col += isect.col;
+  }
+  assert(0 < dot(ray.dir, isect.normal));
   return ray;
 }
 
@@ -264,41 +187,55 @@ Ray decideLightRay(const Vec& normal, const Vec& point,
         normalize(u * std::cos(phi) * costheta + v * std::sin(phi) * costheta +
                   normal * std::sqrt(1.f - costheta * costheta));
     r_pdf = kPI;
+    //    if (coord(rnd) < 0.5) {
+    //      r_dir *= -1.f;
+    //    }
   }
   return Ray(point, r_dir, r_pdf);
 }
 
-constexpr int kMAX_DEPTH = 10;
+constexpr int kMAX_DEPTH = 5;
 Point makePoint(const Polygon& light, const real& u, const real& v,
                 const BVH& bvh, std::uniform_real_distribution<>& coord,
                 std::mt19937& rnd) {
-
   Vec edge0 = light.vert[1] - light.vert[0];
   Vec edge1 = light.vert[2] - light.vert[0];
   Ray ray = decideLightRay(normalize(cross(edge0, edge1)),
                            light.vert[0] + u * edge0 + v * edge1, coord, rnd,
                            light.material);
   ray.pdf *= cross(edge0, edge1).length();
+  if (light.material == Material::Light) {
+    ray.col = light.col;
+  } else if (light.material == Material::DirLight) {
+    ray.col = light.col * dot(ray.dir, normalize(cross(edge0, edge1)));
+  }
   Intersection isect;
 
   for (ray.depth = 1; ray.depth < kMAX_DEPTH; ray.depth++) {
     isect = intersectBVH(ray, bvh);
-    if (isect.t == kINF) {
-      return Point(Vec(), Vec(), 0.0);
+    if (isect.t >= kINF) {
+      return Point(Vec(), -1, Vec(), 0.0);
     }
     ray.col *= isect.col;
-    ray.col *= real(dot(ray.dir, isect.normal)) / (isect.t * isect.t);
+
+    ray.col *= -real(dot(ray.dir, isect.normal));  // / (isect.t * isect.t);
+    assert(0 < -dot(ray.dir, isect.normal));
     ray = decideRay(isect, ray, coord, rnd);
     ray.col *= real(dot(ray.dir, isect.normal));
+    assert(0 < dot(ray.dir, isect.normal));
 
     if (coord(rnd) > std::pow(0.8, ray.depth)) {
-      return Point(isect.point, ray.col, ray.pdf);
+      return Point(isect.point, isect.solid_id, ray.col, ray.pdf);
     }
     ray.pdf /= std::max(1.0, std::pow(0.8, ray.depth));
     // TODO
   }
 
-  return Point(isect.point, ray.col, ray.pdf);
+  const Polygon& pol = bvh.polygons[isect.solid_id];
+  Vec norm =
+      normalize(cross(pol.vert[1] - pol.vert[0], pol.vert[2] - pol.vert[0]));
+  int sgn = dot(norm, isect.normal) > 0 ? 1 : -1;
+  return Point(isect.point, isect.solid_id * sgn, ray.col, ray.pdf);
 }
 
 void lightTracing(const std::vector<Polygon>& lights, const int& num_sample,
@@ -311,7 +248,7 @@ void lightTracing(const std::vector<Polygon>& lights, const int& num_sample,
 
   dst->resize(num_sample);
 
-#if 1 // Parallel threading
+#if 0  // Parallel threading
   int num_thread = std::thread::hardware_concurrency();
   std::vector<std::thread> threads;
   std::atomic_int i;
@@ -342,7 +279,7 @@ void lightTracing(const std::vector<Polygon>& lights, const int& num_sample,
   for (auto& th : threads) {
     th.join();
   }
-#else // One line
+#else  // One line
   int i = 0;
   while (i < num_sample) {
     real u = coord(engine), v = coord(engine);
@@ -359,6 +296,9 @@ void lightTracing(const std::vector<Polygon>& lights, const int& num_sample,
       continue;
     }
     (*dst)[i++] = point;
+    if (length(point.col) > 10) {
+      DEBUG_LOG(point.col);
+    }
   }
 #endif
 
@@ -366,12 +306,12 @@ void lightTracing(const std::vector<Polygon>& lights, const int& num_sample,
   DEBUG_LOG("lightTracing done");
 }
 
-} // namespace
+}  // namespace
 
 bool GlslRayTraceRenderer::init() {
   if (!glfwInit()) {
     return false;
-  } // glfw3
+  }  // glfw3
 
   DEBUG_LOG("GLFW version : ", glfwGetVersionString());
 
@@ -388,7 +328,7 @@ bool GlslRayTraceRenderer::init() {
   window = glfwCreateWindow(r_config.width, r_config.height,
                             w_config.title.c_str(), nullptr, nullptr);
 
-  glfwMakeContextCurrent(window); // choice drawing window
+  glfwMakeContextCurrent(window);  // choice drawing window
   glfwSwapInterval(1);
 
   // glew
@@ -432,8 +372,7 @@ bool GlslRayTraceRenderer::init() {
   return true;
 }
 int GlslRayTraceRenderer::start() {
-  if (window == nullptr)
-    return -1;
+  if (window == nullptr) return -1;
 
   // attribute
   std::vector<GLfloat> triangle_attribute{
@@ -467,15 +406,14 @@ int GlslRayTraceRenderer::start() {
   // for off screen rendering, setup two textures (and framebuffer).
   OpenGLTexture<GL_TEXTURE_2D, GLfloat> accumulator[2];
   accumulator[0].init({{r_config.width, r_config.height}}, -1, GL_RGBA32F,
-                      GL_RGBA, nullptr, GL_NEAREST);
+                      GL_NEAREST);
   accumulator[1].init({{r_config.width, r_config.height}}, -1, GL_RGBA32F,
-                      GL_RGBA, nullptr, GL_NEAREST);
+                      GL_NEAREST);
   accumulator[0].initFrameBuffer();
   accumulator[1].initFrameBuffer();
 
   OpenGLTexture<GL_TEXTURE_RECTANGLE, GLfloat> point_tex;
-  point_tex.init({{r_config.n_sample_frame, 100}}, -1, GL_RGBA16F, GL_RGBA,
-                 nullptr);
+  point_tex.init({{r_config.n_sample_frame * 2, 100}}, -1, GL_RGBA16F);
 
   UniformLocContainer uni_locs;
 
@@ -488,16 +426,24 @@ int GlslRayTraceRenderer::start() {
   uni_locs.add("gamma", gl_program_id);
   uni_locs.add("onlyDraw", gl_program_id);
   uni_locs.add("bvh_size", gl_program_id);
+  uni_locs.add("render_count", gl_program_id);
 
   FpsCounter fps;
   fps.init();
 
-  const size_t num_points = r_config.n_sample_frame * 100;
+  const size_t num_points = r_config.n_sample_frame * 20;
 
   std::vector<Point> points;
   std::atomic_bool finish_flag;
   std::thread light_tracing_th(lightTracing, lights, num_points, bvh, &points,
                                &finish_flag);
+  light_tracing_th.join();
+  point_tex.subImage({{0, 0}}, {{r_config.n_sample_frame, 100}}, GL_RGBA,
+                     reinterpret_cast<GLfloat*>(&points[0]));
+
+  finish_flag = false;
+  light_tracing_th =
+      std::thread(lightTracing, lights, num_points, bvh, &points, &finish_flag);
 
   tri_tex->uniform(gl_program_id, "tri_tex");
   bvh_tex->uniform(gl_program_id, "bvh_tex");
@@ -513,13 +459,14 @@ int GlslRayTraceRenderer::start() {
 
   // Main Loop
   size_t n = 0;
+  int render_count = 0;
   while (!glfwWindowShouldClose(window)) {
-
-    if (n * r_config.n_sample_frame < 10e16 * num_points) {
+    if (size_t(render_count) * r_config.n_sample_frame < num_points) {
       accumulator[(n + 1) % 2].uniform(gl_program_id, "d_tex");
       glUniform4f(uni_locs["rand_seed"], rand_(), rand_(), rand_(), rand_());
       glUniform1i(uni_locs["onlyDraw"], false);
       glUniform1i(uni_locs["num_sample"], r_config.n_sample_frame);
+      glUniform1i(uni_locs["render_count"], render_count);
 
       glViewport(0, 0, r_config.width, r_config.height);
 
@@ -529,11 +476,12 @@ int GlslRayTraceRenderer::start() {
       accumulator[0].resetFB();
 
       n++;
+      render_count++;
     } else if (finish_flag) {
       light_tracing_th.join();
-      point_tex.subImage({{0, 0}}, {{r_config.n_sample_frame, 100}}, GL_RGB,
-                         reinterpret_cast<GLfloat*>(&points[0]));
-      n = 0;
+      point_tex.subImage({{0, 0}}, {{r_config.n_sample_frame * 2, 100}},
+                         GL_RGBA, reinterpret_cast<GLfloat*>(&points[0]));
+      render_count = 0;
 
       finish_flag = false;
       light_tracing_th = std::thread(lightTracing, lights, num_points, bvh,
@@ -570,7 +518,7 @@ int GlslRayTraceRenderer::start() {
       std::clog << "fps : " << fps.fps << "  rps average : " << rps
                 << std::endl;
     }
-  } // Main Loop
+  }  // Main Loop
 
   light_tracing_th.join();
 
