@@ -11,30 +11,38 @@
 
 #include "glsl.h"
 
-template <typename Datatype> constexpr GLint gltype();
+template <typename Datatype>
+constexpr GLint gltype = -1;
 
-template <> constexpr GLint gltype<GLint>() { return GL_INT; }
-template <> constexpr GLint gltype<GLubyte>() { return GL_UNSIGNED_BYTE; }
-template <> constexpr GLint gltype<GLfloat>() { return GL_FLOAT; }
+template <>
+constexpr GLint gltype<GLint> = GL_INT;
+template <>
+constexpr GLint gltype<GLubyte> = GL_UNSIGNED_BYTE;
+template <>
+constexpr GLint gltype<GLfloat> = GL_FLOAT;
 
-template <GLint target> constexpr size_t Dimention();
-template <> constexpr size_t Dimention<GL_TEXTURE_1D>() { return 1; }
-template <> constexpr size_t Dimention<GL_TEXTURE_2D>() { return 2; }
-template <> constexpr size_t Dimention<GL_TEXTURE_RECTANGLE>() { return 2; }
+template <GLint target>
+constexpr size_t Dimention = 0;
+template <>
+constexpr size_t Dimention<GL_TEXTURE_1D> = 1;
+template <>
+constexpr size_t Dimention<GL_TEXTURE_2D> = 2;
+template <>
+constexpr size_t Dimention<GL_TEXTURE_RECTANGLE> = 2;
 
 /**
  target is GL_TEXTURE_RECTANGLE or GL_TEXTURE_2D or GL_TEXTURE_1D.
  Datatype is GLint, GLfloat, GLubyte.
  **/
-template <GLint target, typename Datatype> class OpenGLTexture {
+template <GLint target, typename Datatype>
+class OpenGLTexture {
 public:
+  using Size = std::array<int, Dimention<target>>;
+
+private:
   GLint f_param;
   GLint w_param;
   GLenum internal_format;
-  GLenum format;
-  using Size = std::array<int, Dimention<target>()>;
-
-private:
   GLuint tex_num;
   GLuint name;
   Size size;
@@ -67,20 +75,30 @@ public:
             GLenum format_, Datatype* pixels, GLint filter_param = GL_NEAREST,
             GLint wrap_param = GL_CLAMP_TO_EDGE);
 
+  bool init(const Size& size, const int& tex_num_, GLenum internal_format_,
+            GLint filter_param = GL_NEAREST,
+            GLint wrap_param = GL_CLAMP_TO_EDGE) {
+    return init(size, tex_num_, internal_format_, GL_RED, nullptr, filter_param,
+                wrap_param);
+  }
+
   /** if target is Texture1D, y and h is dead status. **/
   bool subImage(const Size& pos, const Size& area, int format,
                 Datatype* pixels);
 
   bool initFrameBuffer();
   bool copyColorBuffer(const Size& offset, const Size& pos, const Size& area);
-  bool bindFB();
+  bool bindFB() const;
   void resetFB() const;
-  GLubyte* getPixelData();
-  void getPixelData(GLubyte* out);
+  std::unique_ptr<Datatype[]> getPixelData(const GLint& format) const;
+  void getPixelData(const GLint& format, Datatype* dst) const;
 
-  bool uniform(const GLuint& program, const char* name);
+  bool uniform(const GLuint& program, const char* name) const;
 
-  GLuint get_num() { return tex_num; }
+  const GLuint& get_num() const { return tex_num; }
+  const GLenum& getInternalFormat() const { return internal_format; }
+  const GLint& getFilterParameter() const { return f_param; }
+  const GLint& getWrapParameter() const { return w_param; }
 };
 
 using Texture1Di = OpenGLTexture<GL_TEXTURE_1D, GLint>;
@@ -90,6 +108,9 @@ using TextureP = std::shared_ptr<OpenGLTexture<target, Datatype>>;
 
 using PTexture2Di = TextureP<GL_TEXTURE_2D, GLint>;
 using PTexture2Df = TextureP<GL_TEXTURE_2D, GLfloat>;
+
+// template bool OpenGLTexture<GL_TEXTURE_2D, GLfloat>::init(const Size&, const
+// int&, GLenum, GLenum, GLfloat*, GLint, GLint);
 
 /** For RayTrace with OpenGL **/
 class QuadDrawer {
@@ -125,12 +146,12 @@ public:
     // Describe our vertices array to OpenGL (it can't guess its format
     // automatically)
     glVertexAttribPointer(
-        attr_coord_id,       // attribute
-        2,                   // number of elements per vertex, here (x,y)
-        GL_FLOAT,            // the type of each element
-        GL_FALSE,            // take our values as-is
-        2 * sizeof(GLfloat), // no extra data between each position
-        0                    // pointer to the C array
+        attr_coord_id,        // attribute
+        2,                    // number of elements per vertex, here (x,y)
+        GL_FLOAT,             // the type of each element
+        GL_FALSE,             // take our values as-is
+        2 * sizeof(GLfloat),  // no extra data between each position
+        0                     // pointer to the C array
     );
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     glDisableVertexAttribArray(attr_coord_id);
