@@ -165,23 +165,29 @@ bool OpenGLTexture<target, Datatype>::subImage(const Size& pos,
 }
 
 template <GLint target, typename Datatype>
-std::unique_ptr<Datatype[]> OpenGLTexture<target, Datatype>::getPixelData(const GLint& format) const {
+std::unique_ptr<Datatype[]> OpenGLTexture<target, Datatype>::getPixelData(
+    const GLint& format) const {
   if (fbID == GLuint(-1)) {
-    std::cerr << "OpenGLTexture::getPixelData() must be called after initFrameBuffer()!" << std::endl;
+    std::cerr << "OpenGLTexture::getPixelData() must be called after "
+                 "initFrameBuffer()!"
+              << std::endl;
     exit(EXIT_FAILURE);
   }
   bindFB();
 
   auto dst = std::make_unique<Datatype[]>(size[0] * size[1] * 4);
   glReadPixels(0, 0, size[0], size[1], format, gltype<Datatype>, &dst[0]);
-  
+
   return dst;
 }
 
 template <GLint target, typename Datatype>
-void OpenGLTexture<target, Datatype>::getPixelData(const GLint& format, Datatype* dst) const{
+void OpenGLTexture<target, Datatype>::getPixelData(const GLint& format,
+                                                   Datatype* dst) const {
   if (fbID == GLuint(-1)) {
-    std::cerr << "OpenGLTexture::getPixelData() must be called after initFrameBuffer()!" << std::endl;
+    std::cerr << "OpenGLTexture::getPixelData() must be called after "
+                 "initFrameBuffer()!"
+              << std::endl;
     exit(EXIT_FAILURE);
   }
   bindFB();
