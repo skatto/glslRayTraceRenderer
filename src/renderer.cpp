@@ -14,6 +14,7 @@
 #include "../gl_src/glsl_utility.h"
 #include "fps.h"
 #include "logger.h"
+#include "ppm.h"
 
 namespace {
 
@@ -58,7 +59,9 @@ PTexture2Df setupTriangleTexture(const int& side_len,
     real info;
 
     PolygonData(const Polygon& pol)
-        : ver0(pol.vert[0]), ver1(pol.vert[1]), ver2(pol.vert[2]),
+        : ver0(pol.vert[0]),
+          ver1(pol.vert[1]),
+          ver2(pol.vert[2]),
           color(pol.col) {
       info = GLfloat(pol.material);
     }
@@ -117,12 +120,20 @@ bool setupBVHTexture(const int& side_len, const BVH& bvh, PTexture2Df coord_tex,
   return true;
 }
 
-} // namespace
+void imageProcessing(const float& brightness, const float& gamma,
+                     const size_t& num_sample, std::vector<GLfloat>* pixels) {
+  for (auto& pixel : *pixels) {
+    pixel = std::max(0.f, std::min(1.f, brightness * pixel / num_sample));
+    pixel = std::pow(pixel, gamma);
+  }
+}
+
+}  // namespace
 
 bool GlslRayTraceRenderer::init() {
   if (!glfwInit()) {
     return false;
-  } // glfw3
+  }  // glfw3
 
   DEBUG_LOG("GLFW version : ", glfwGetVersionString());
 
@@ -139,7 +150,7 @@ bool GlslRayTraceRenderer::init() {
   window = glfwCreateWindow(r_config.width, r_config.height,
                             w_config.title.c_str(), nullptr, nullptr);
 
-  glfwMakeContextCurrent(window); // choice drawing window
+  glfwMakeContextCurrent(window);  // choice drawing window
   glfwSwapInterval(1);
 
   // glew
@@ -183,8 +194,7 @@ bool GlslRayTraceRenderer::init() {
   return true;
 }
 int GlslRayTraceRenderer::start() {
-  if (window == nullptr)
-    return -1;
+  if (window == nullptr) return -1;
 
   // attribute
   std::vector<GLfloat> triangle_attribute{
@@ -242,7 +252,6 @@ int GlslRayTraceRenderer::start() {
   // Main Loop
   size_t n = 1;
   while (!glfwWindowShouldClose(window)) {
-
     // if number sampled greater than r_config.max_sample, don't render.
     if (size_t(n - 1) * size_t(r_config.n_sample_frame) < r_config.max_sample) {
       tri_tex->uniform(gl_program_id, "tri_tex");
@@ -292,6 +301,17 @@ int GlslRayTraceRenderer::start() {
       glfwSetWindowShouldClose(window, 1);
     }
 
+    if (glfwGetKey(window, GLFW_KEY_W)) {
+      std::vector<GLfloat> pixels(r_config.width * r_config.height * 3);
+      accumulator[n % 2].getPixelData(GL_RGB, &pixels[0]);
+
+      imageProcessing(bright_mag, r_config.gamma, n - 1, &pixels);
+
+      if (SaveImageAsPPM("out.ppm", pixels, r_config.width, r_config.height)) {
+        LOG_INFO("Save Image : ", "out.ppm");
+      }
+    }
+
     // log fps avarage. and compute ray/sec.
     if (-1 != fps.update()) {
       size_t rps =
@@ -300,7 +320,7 @@ int GlslRayTraceRenderer::start() {
       std::clog << "fps : " << fps.fps << "  rps average : " << rps
                 << std::endl;
     }
-  } // Main Loop
+  }  // Main Loop
 
   glfwDestroyWindow(window);
   glfwTerminate();

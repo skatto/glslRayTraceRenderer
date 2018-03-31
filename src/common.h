@@ -74,7 +74,9 @@ struct Vec {
   }
 
   inline real length_squared() const { return x * x + y * y + z * z; }
-  inline real length() const { return real(std::sqrt(double(length_squared()))); }
+  inline real length() const {
+    return real(std::sqrt(double(length_squared())));
+  }
 
   constexpr real operator[](int i) const { return (&x)[i]; }
   real& operator[](int i) { return (&x)[i]; }
@@ -191,7 +193,7 @@ public:
   struct Node {
     Vec start, end;
     size_t s_idx = size_t(-1), e_idx = size_t(-1);
-    size_t brother = size_t(-1); // index of brother
+    size_t brother = size_t(-1);  // index of brother
     size_t parent = size_t(-1);
     bool leaf = false;
   };

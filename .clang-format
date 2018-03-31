@@ -1,3 +1,4 @@
-BasedOnStyle: LLVM
+BasedOnStyle: Google
 IndentWidth: 2
 PointerAlignment: Left
+AccessModifierOffset: -2

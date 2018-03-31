@@ -6,8 +6,8 @@
 //  Copyright © 2018年 Skatto. All rights reserved.
 //
 
-#include "renderer.hpp"
 #include <iostream>
+#include "renderer.hpp"
 
 int main() {
   std::vector<Polygon> polygons{

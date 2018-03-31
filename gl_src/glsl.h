@@ -13,15 +13,15 @@
 #include <GL/gl.h>
 #endif
 
-#define CHECK_GL_ERROR()                                                       \
-  {                                                                            \
-    GLenum errcode = glGetError();                                             \
-    if (errcode != GL_NO_ERROR) {                                              \
-      std::string errstring = getGlErrStr(errcode);                            \
-      std::cerr << __FILE__ << ":" << __LINE__ << " : " << errstring           \
-                << std::endl;                                                  \
-      exit(1);                                                                 \
-    }                                                                          \
+#define CHECK_GL_ERROR()                                             \
+  {                                                                  \
+    GLenum errcode = glGetError();                                   \
+    if (errcode != GL_NO_ERROR) {                                    \
+      std::string errstring = getGlErrStr(errcode);                  \
+      std::cerr << __FILE__ << ":" << __LINE__ << " : " << errstring \
+                << std::endl;                                        \
+      exit(1);                                                       \
+    }                                                                \
   }
 
 GLuint create_shader(const char* filename, GLenum type);
@@ -72,8 +72,7 @@ inline void checkGlError(const std::string& label = std::string()) {
   GLenum errcode = glGetError();
   if (errcode != GL_NO_ERROR) {
     std::string errstring = getGlErrStr(errcode);
-    if (!label.empty())
-      std::cout << label << " : ";
+    if (!label.empty()) std::cout << label << " : ";
     std::cout << errstring << std::endl;
     exit(1);
   }

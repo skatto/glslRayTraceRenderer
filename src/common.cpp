@@ -85,7 +85,7 @@ size_t decidePartition(const BVH::Node& parent, std::vector<Polygon>* pols) {
   return min_idx;
 }
 
-} // namespace
+}  // namespace
 
 bool BVH::init(const std::vector<Polygon>& pols) {
   polygons = pols;
@@ -108,7 +108,6 @@ bool BVH::init(const std::vector<Polygon>& pols) {
     issue_stack.pop_back();
 
     if (node.parent == size_t(-1)) {
-
     } else if (node.parent != nodes.size() - 1) {
       nodes[node.parent + 1].brother = nodes.size();
     }
